@@ -4,7 +4,9 @@ from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 from typing import Dict, Optional
+
 from app.schemas import ProcessingResult
+from settings import get_settings
 
 
 class MockDynamoDBTable:
@@ -60,8 +62,11 @@ class MockDynamoDBTable:
 
 @lru_cache
 def build_default_table(
-    name: str = "processing_results",
-    path: Optional[str] = "./tmp/mock_db.json",
+    name: Optional[str] = None,
+    path: Optional[str] = None,
 ) -> MockDynamoDBTable:
-    persistence = Path(path) if path else None
-    return MockDynamoDBTable(name=name, persistence_path=persistence)
+    settings = get_settings()
+    table_name = settings.table_name if name is None else name
+    table_path = settings.table_persistence_path if path is None else path
+    persistence = Path(table_path) if table_path else None
+    return MockDynamoDBTable(name=table_name, persistence_path=persistence)

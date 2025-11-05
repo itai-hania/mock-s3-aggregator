@@ -6,6 +6,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Dict, Iterable, Iterator, Optional, Set, TextIO
 
+from settings import get_settings
+
 
 class MockS3Bucket:
 
@@ -93,8 +95,11 @@ class MockS3Bucket:
 
 @lru_cache
 def build_default_bucket(
-    name: str = "uploads",
-    root_path: Optional[str] = "./tmp/mock_s3",
+    name: Optional[str] = None,
+    root_path: Optional[str] = None,
 ) -> MockS3Bucket:
-    path = Path(root_path) if root_path else None
-    return MockS3Bucket(name=name, root_path=path)
+    settings = get_settings()
+    bucket_name = settings.bucket_name if name is None else name
+    bucket_root = settings.bucket_root_path if root_path is None else root_path
+    path = Path(bucket_root) if bucket_root else None
+    return MockS3Bucket(name=bucket_name, root_path=path)
