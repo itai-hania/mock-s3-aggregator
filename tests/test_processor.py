@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 
 from fastapi import BackgroundTasks, UploadFile
 
@@ -117,6 +118,33 @@ sensor-3,2024-01-01T00:02:00Z,
     assert result.aggregates.row_count == 1
     reasons = sorted(error.reason for error in result.errors)
     assert reasons == ["invalid timestamp", "missing value"]
+
+
+def test_processor_logs_skipped_rows(tmp_path, caplog) -> None:
+    bucket = MockS3Bucket(name="test", root_path=tmp_path / "s3")
+    table = MockDynamoDBTable(name="test", persistence_path=tmp_path / "db.json")
+    processor = ProcessorService(bucket=bucket, table=table, aggregator=Aggregator(), workers=1)
+
+    csv_content = """sensor_id,timestamp,value
+sensor-1,2024-01-01T00:00:00Z,1.0
+sensor-1,2024-01-01T00:02:00Z,not-a-number
+"""
+    upload = _create_upload_file(csv_content, filename="invalid.csv")
+    tasks = BackgroundTasks()
+
+    with caplog.at_level(logging.WARNING):
+        file_id = processor.enqueue_file(tasks, upload)
+        _drain_background_tasks(tasks)
+        _await_result(processor, file_id)
+
+    records = [record for record in caplog.records if record.name == "services.processor"]
+    assert records, "Expected row skip warnings to be logged."
+
+    messages = [record.getMessage() for record in records]
+    assert any("Skipping row" in message and "invalid numeric value" in message for message in messages)
+
+    assert any(getattr(record, "file_id", None) == file_id for record in records)
+    assert any(getattr(record, "object_key", "").endswith("invalid.csv") for record in records)
 
 
 def test_processor_streams_from_disk(tmp_path) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import csv
+import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -19,6 +20,9 @@ from datastore.mock_dynamodb import MockDynamoDBTable, build_default_table
 from services.aggregator import Aggregator
 from models.records import SensorReading
 from storage.mock_s3 import MockS3Bucket, build_default_bucket
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessorService:
@@ -117,54 +121,51 @@ class ProcessorService:
                 value_col = normalized["value"]
 
                 def iter_readings() -> Iterator[SensorReading]:
+                    def register_error(row_number: int, reason: str) -> None:
+                        logger.warning(
+                            "Skipping row %d for file_id=%s (object key %s): %s",
+                            row_number,
+                            file_id,
+                            key,
+                            reason,
+                            extra={
+                                "file_id": file_id,
+                                "object_key": key,
+                                "row_number": row_number,
+                                "reason": reason,
+                            },
+                        )
+                        errors.append(
+                            ProcessingError(row_number=row_number, reason=reason)
+                        )
+
                     for row_number, row in enumerate(reader, start=2):
                         sensor_raw = (row.get(sensor_col) or "").strip()
                         timestamp_raw = (row.get(timestamp_col) or "").strip()
                         value_raw = (row.get(value_col) or "").strip()
 
                         if not sensor_raw:
-                            errors.append(
-                                ProcessingError(
-                                    row_number=row_number, reason="missing sensor_id"
-                                )
-                            )
+                            register_error(row_number, "missing sensor_id")
                             continue
 
                         if not timestamp_raw:
-                            errors.append(
-                                ProcessingError(
-                                    row_number=row_number, reason="missing timestamp"
-                                )
-                            )
+                            register_error(row_number, "missing timestamp")
                             continue
 
                         try:
                             timestamp = self._parse_timestamp(timestamp_raw)
                         except ValueError:
-                            errors.append(
-                                ProcessingError(
-                                    row_number=row_number, reason="invalid timestamp"
-                                )
-                            )
+                            register_error(row_number, "invalid timestamp")
                             continue
 
                         if not value_raw:
-                            errors.append(
-                                ProcessingError(
-                                    row_number=row_number, reason="missing value"
-                                )
-                            )
+                            register_error(row_number, "missing value")
                             continue
 
                         try:
                             value = float(value_raw)
                         except ValueError:
-                            errors.append(
-                                ProcessingError(
-                                    row_number=row_number,
-                                    reason="invalid numeric value",
-                                )
-                            )
+                            register_error(row_number, "invalid numeric value")
                             continue
 
                         yield SensorReading(
