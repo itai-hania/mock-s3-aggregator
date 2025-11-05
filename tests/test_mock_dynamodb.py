@@ -66,3 +66,19 @@ def test_put_item_persists_to_disk_and_reloads(tmp_path) -> None:
     loaded = table_reloaded.get_item(result.file_id)
     assert loaded == result
     assert loaded is not result
+
+
+def test_scan_returns_all_items_as_deep_copies() -> None:
+    table = MockDynamoDBTable(name="processing_results")
+    first = _sample_result(file_id="file-1")
+    second = _sample_result(file_id="file-2")
+
+    table.put_item(first)
+    table.put_item(second)
+
+    scanned = sorted(table.scan(), key=lambda item: item.file_id)
+    assert [item.file_id for item in scanned] == ["file-1", "file-2"]
+
+    scanned[0].aggregates.row_count = 99  # type: ignore[assignment]
+    rescanned = table.scan()
+    assert all(item.aggregates.row_count == 5 for item in rescanned)  # type: ignore[union-attr]
