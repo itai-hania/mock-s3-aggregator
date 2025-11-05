@@ -1,10 +1,9 @@
+from __future__ import annotations
 import time
 import uuid
 from typing import Dict, Iterator
-
 import pytest
 from fastapi.testclient import TestClient
-
 from app.main import create_app
 from datastore.mock_dynamodb import MockDynamoDBTable
 from services.aggregator import Aggregator
