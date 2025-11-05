@@ -30,11 +30,17 @@ class MockDynamoDBTable:
                     self._items[file_id] = ProcessingResult.model_validate(payload)
 
     def put_item(self, item: ProcessingResult) -> None:
+        """Persist a processing result keyed by its ``file_id``.
+
+        A deep copy is stored to keep the in-memory cache isolated from
+        subsequent mutations of the provided model instance.
+        """
         with self._lock:
-            self._items[item.file_id] = item
+            self._items[item.file_id] = item.model_copy(deep=True)
             self._persist()
 
     def get_item(self, key: str) -> Optional[ProcessingResult]:
+        """Return a deep copy of the stored result for ``file_id`` ``key``."""
         with self._lock:
             item = self._items.get(key)
             if item is None:
@@ -42,6 +48,7 @@ class MockDynamoDBTable:
             return item.model_copy(deep=True)
 
     def _persist(self) -> None:
+        """Flush the current table contents to ``persistence_path`` if enabled."""
         if not self.persistence_path:
             return
         payload = {
