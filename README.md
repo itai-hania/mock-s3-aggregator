@@ -37,11 +37,12 @@ Client -> FastAPI results endpoint -> Mock DynamoDB lookup
 
 Environment variables (defaults provided in code):
 
-- `MOCK_S3_BUCKET=uploads`
-- `MOCK_S3_ROOT=./tmp/mock_s3`
-- `MOCK_DB_TABLE=processing_results`
-- `MOCK_DB_PATH=./tmp/mock_db.json`
-- `PROCESSOR_WORKERS=4`
+- `MOCK_S3_BUCKET_NAME=uploads`
+- `MOCK_S3_ROOT_PATH=./tmp/mock_s3`
+- `MOCK_DYNAMODB_TABLE_NAME=processing_results`
+- `MOCK_DYNAMODB_PERSISTENCE_PATH=./tmp/mock_db.json`
+- `PROCESSOR_WORKER_COUNT=4`
+- `LOG_LEVEL=INFO`
 
 ## Running the Service
 
@@ -109,19 +110,25 @@ OpenAPI docs available at `http://localhost:8000/docs`. Redoc at `/redoc`.
 
 - **Mock S3**
   - API: `put_object(bucket, key, data)`, `get_object(bucket, key)`, `list_objects(bucket)`.
-  - Storage: in-memory index with optional persistence to `MOCK_S3_ROOT` for inspection.
+  - Storage: in-memory index with optional persistence to `MOCK_S3_ROOT_PATH` for inspection.
   - Real-world counterpart: Amazon S3 standard bucket.
 
 - **Mock DynamoDB**
   - API: `put_item(table, item)`, `get_item(table, key)`, `update_item`, `scan`.
-  - Storage: in-memory dict with periodic write-through JSON file (`MOCK_DB_PATH`).
+  - Storage: in-memory dict with periodic write-through JSON file (`MOCK_DYNAMODB_PERSISTENCE_PATH`).
   - Mirrors DynamoDB partition key + item semantics.
 
 ## Concurrency Notes
 
-- Upload endpoint immediately persists the file and submits a job to a shared thread pool (`PROCESSOR_WORKERS` size).
+- Upload endpoint immediately persists the file and submits a job to a shared thread pool (`PROCESSOR_WORKER_COUNT` size).
 - Thread pool chosen over async coroutines to simplify CPU-friendly CSV parsing without complex event loops.
 - Scaling strategy: increase worker count, run multiple service instances, or replace with distributed task queue (Celery/SQS) in production.
+
+## Logging
+
+- Centralized configuration applies a contextual formatter that appends `file_id`, `object_key`, `status`, `row_count`, and other metadata when present.
+- Use `LOG_LEVEL` to control verbosity (`INFO` by default); set to `DEBUG` to surface detailed lifecycle messages.
+- Row-level validation failures emit warnings with structured context so skipped records can be traced without interrupting successful processing.
 
 ## Testing
 

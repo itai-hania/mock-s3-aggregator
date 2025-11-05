@@ -22,6 +22,7 @@ def test_environment_overrides_apply(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("MOCK_DYNAMODB_TABLE_NAME", "custom-table")
     monkeypatch.setenv("MOCK_DYNAMODB_PERSISTENCE_PATH", str(table_path))
     monkeypatch.setenv("PROCESSOR_WORKER_COUNT", "2")
+    monkeypatch.setenv("LOG_LEVEL", "debug")
 
     caches = (
         get_settings,
@@ -34,6 +35,7 @@ def test_environment_overrides_apply(monkeypatch, tmp_path) -> None:
     bucket = build_default_bucket()
     table = build_default_table()
     processor = build_default_processor()
+    settings_obj = get_settings()
 
     try:
         assert bucket.name == "custom-bucket"
@@ -41,6 +43,7 @@ def test_environment_overrides_apply(monkeypatch, tmp_path) -> None:
         assert table.name == "custom-table"
         assert table.persistence_path == table_path
         assert processor.executor._max_workers == 2
+        assert settings_obj.log_level == "DEBUG"
     finally:
         processor.shutdown()
         build_default_processor.cache_clear()

@@ -2,13 +2,12 @@ from __future__ import annotations
 import csv
 import logging
 import time
-import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional
 from uuid import uuid4
 from fastapi import BackgroundTasks, UploadFile
 from app.schemas import (
@@ -66,6 +65,15 @@ class ProcessorService:
         )
         self.table.put_item(initial_record)
 
+        logger.info(
+            "Accepted upload for processing",
+            extra={
+                "file_id": file_id,
+                "object_key": key,
+                "status": ProcessingStatus.uploaded.value,
+            },
+        )
+
         future = self.executor.submit(
             self._process_file, file_id=file_id, key=key, uploaded_at=uploaded_at
         )
@@ -91,7 +99,14 @@ class ProcessorService:
 
     def _process_file(self, file_id: str, key: str, uploaded_at: datetime) -> None:
         start_time = time.perf_counter()
-        logger.debug("Starting processing for file %s at key %s", file_id, key)
+        logger.info(
+            "Starting processing for file",
+            extra={
+                "file_id": file_id,
+                "object_key": key,
+                "status": ProcessingStatus.processing.value,
+            },
+        )
 
         processing_record = ProcessingResult(
             file_id=file_id,
@@ -125,19 +140,25 @@ class ProcessorService:
                 value_col = normalized["value"]
 
                 def iter_readings() -> Iterator[SensorReading]:
-                    def register_error(row_number: int, reason: str) -> None:
+                    def register_error(
+                        row_number: int,
+                        reason: str,
+                        **context: Any,
+                    ) -> None:
+                        extra_context: dict[str, Any] = {
+                            "file_id": file_id,
+                            "object_key": key,
+                            "row_number": row_number,
+                            "reason": reason,
+                        }
+                        if context:
+                            extra_context.update(
+                                {k: v for k, v in context.items() if v is not None}
+                            )
                         logger.warning(
-                            "Skipping row %d for file_id=%s (object key %s): %s",
-                            row_number,
-                            file_id,
-                            key,
+                            "Skipping row during processing: %s",
                             reason,
-                            extra={
-                                "file_id": file_id,
-                                "object_key": key,
-                                "row_number": row_number,
-                                "reason": reason,
-                            },
+                            extra=extra_context,
                         )
                         errors.append(
                             ProcessingError(row_number=row_number, reason=reason)
@@ -149,73 +170,34 @@ class ProcessorService:
                         value_raw = (row.get(value_col) or "").strip()
 
                         if not sensor_raw:
-                            reason = "missing sensor_id"
-                            logger.warning(
-                                "Skipping row %d in file %s: %s",
-                                row_number,
-                                file_id,
-                                reason,
-                            )
-                            errors.append(
-                                ProcessingError(row_number=row_number, reason=reason)
-                            )
+                            register_error(row_number, "missing sensor_id")
                             continue
 
                         if not timestamp_raw:
-                            reason = "missing timestamp"
-                            logger.warning(
-                                "Skipping row %d in file %s: %s",
-                                row_number,
-                                file_id,
-                                reason,
-                            )
-                            errors.append(
-                                ProcessingError(row_number=row_number, reason=reason)
-                            )
+                            register_error(row_number, "missing timestamp")
                             continue
 
                         try:
                             timestamp = self._parse_timestamp(timestamp_raw)
                         except ValueError:
-                            reason = "invalid timestamp"
-                            logger.warning(
-                                "Skipping row %d in file %s: %s (%s)",
+                            register_error(
                                 row_number,
-                                file_id,
-                                reason,
-                                timestamp_raw,
-                            )
-                            errors.append(
-                                ProcessingError(row_number=row_number, reason=reason)
+                                "invalid timestamp",
+                                invalid_value=timestamp_raw,
                             )
                             continue
 
                         if not value_raw:
-                            reason = "missing value"
-                            logger.warning(
-                                "Skipping row %d in file %s: %s",
-                                row_number,
-                                file_id,
-                                reason,
-                            )
-                            errors.append(
-                                ProcessingError(row_number=row_number, reason=reason)
-                            )
+                            register_error(row_number, "missing value")
                             continue
 
                         try:
                             value = float(value_raw)
                         except ValueError:
-                            reason = "invalid numeric value"
-                            logger.warning(
-                                "Skipping row %d in file %s: %s (%s)",
+                            register_error(
                                 row_number,
-                                file_id,
-                                reason,
-                                value_raw,
-                            )
-                            errors.append(
-                                ProcessingError(row_number=row_number, reason=reason)
+                                "invalid numeric value",
+                                invalid_value=value_raw,
                             )
                             continue
 
@@ -243,9 +225,13 @@ class ProcessorService:
             status = ProcessingStatus.failed
             reason = str(exc)
             logger.exception(
-                "Processing of file %s failed with an unexpected error: %s",
-                file_id,
-                reason,
+                "Processing failed with unexpected error",
+                extra={
+                    "file_id": file_id,
+                    "object_key": key,
+                    "status": ProcessingStatus.failed.value,
+                    "reason": reason,
+                },
             )
             errors.append(ProcessingError(row_number=1, reason=reason))
             aggregates = None
@@ -263,12 +249,17 @@ class ProcessorService:
         )
         self.table.put_item(final_record)
 
+        row_count = aggregates.row_count if aggregates is not None else 0
         logger.info(
-            "Finished processing file %s with status %s in %d ms (errors=%d)",
-            file_id,
-            status.value,
-            processing_ms,
-            len(errors),
+            "Finished processing file",
+            extra={
+                "file_id": file_id,
+                "object_key": key,
+                "status": status.value,
+                "processing_ms": processing_ms,
+                "error_count": len(errors),
+                "row_count": row_count,
+            },
         )
 
     @staticmethod

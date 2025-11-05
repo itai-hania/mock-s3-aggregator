@@ -11,6 +11,7 @@ _BUCKET_ROOT_ENV = "MOCK_S3_ROOT_PATH"
 _TABLE_NAME_ENV = "MOCK_DYNAMODB_TABLE_NAME"
 _TABLE_PATH_ENV = "MOCK_DYNAMODB_PERSISTENCE_PATH"
 _WORKER_COUNT_ENV = "PROCESSOR_WORKER_COUNT"
+_LOG_LEVEL_ENV = "LOG_LEVEL"
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class Settings:
     table_name: str
     table_persistence_path: Optional[str]
     processor_workers: int
+    log_level: str
 
 
 def _read_str_env(name: str, default: str) -> str:
@@ -52,6 +54,16 @@ def _read_worker_count(default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+def _read_log_level(default: str) -> str:
+    value = os.getenv(_LOG_LEVEL_ENV)
+    if value is None:
+        return default
+    candidate = value.strip()
+    if not candidate:
+        return default
+    return candidate.upper()
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
@@ -60,4 +72,5 @@ def get_settings() -> Settings:
         table_name=_read_str_env(_TABLE_NAME_ENV, "processing_results"),
         table_persistence_path=_read_optional_env(_TABLE_PATH_ENV, "./tmp/mock_db.json"),
         processor_workers=_read_worker_count(4),
+        log_level=_read_log_level("INFO"),
     )
