@@ -27,7 +27,12 @@ async def upload_file(
 ) -> FileUploadResponse:
     try:
         file_id = processor.enqueue_file(background_tasks, file)
-    except NotImplementedError as exc: 
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except NotImplementedError as exc:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="CSV processing pipeline not implemented yet.",
@@ -46,6 +51,11 @@ async def get_file_result(
 ) -> ProcessingResult:
     try:
         result = processor.fetch_result(file_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except NotImplementedError as exc:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
