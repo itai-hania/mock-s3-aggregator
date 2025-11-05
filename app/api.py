@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 def get_processor() -> ProcessorService:
-    """Dependency injector for the processor service."""
     return build_default_processor()
 
 
@@ -28,7 +27,7 @@ async def upload_file(
 ) -> FileUploadResponse:
     try:
         file_id = processor.enqueue_file(background_tasks, file)
-    except NotImplementedError as exc:  # pragma: no cover - placeholder until implemented
+    except NotImplementedError as exc: 
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="CSV processing pipeline not implemented yet.",
@@ -47,7 +46,7 @@ async def get_file_result(
 ) -> ProcessingResult:
     try:
         result = processor.fetch_result(file_id)
-    except NotImplementedError as exc:  # pragma: no cover - placeholder until implemented
+    except NotImplementedError as exc:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Fetching processing results is not implemented yet.",
@@ -63,3 +62,11 @@ async def get_file_result(
 async def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
+
+@router.get(
+    "/",
+    summary="Root endpoint mirrors health information.",
+    status_code=status.HTTP_200_OK,
+)
+async def root() -> dict[str, str]:
+    return {"status": "ok", "detail": "See /health for service status."}
