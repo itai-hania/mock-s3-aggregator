@@ -1,7 +1,4 @@
-"""Mock S3-style storage for raw CSV objects."""
-
 from __future__ import annotations
-
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
@@ -9,7 +6,6 @@ from typing import Dict, Iterable, Optional
 
 
 class MockS3Bucket:
-    """Minimal in-memory representation of a bucket with optional persistence."""
 
     def __init__(self, name: str, root_path: Optional[Path] = None) -> None:
         self.name = name
@@ -53,7 +49,5 @@ def build_default_bucket(
     name: str = "uploads",
     root_path: Optional[str] = "./tmp/mock_s3",
 ) -> MockS3Bucket:
-    """Factory that builds the default bucket backed by configuration."""
     path = Path(root_path) if root_path else None
     return MockS3Bucket(name=name, root_path=path)
-

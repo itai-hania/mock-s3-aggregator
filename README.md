@@ -33,7 +33,7 @@ Client -> FastAPI results endpoint -> Mock DynamoDB lookup
 | ----------- | ----- |
 | Python      | 3.11+ recommended |
 | Virtualenv  | `python -m venv .venv && source .venv/bin/activate` |
-| Dependencies| `pip install -r requirements.txt` (to be generated) |
+| Dependencies| `pip install -r requirements.txt` |
 
 Environment variables (defaults provided in code):
 

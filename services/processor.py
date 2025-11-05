@@ -1,7 +1,4 @@
-"""Background processing orchestration for CSV files."""
-
 from __future__ import annotations
-
 import csv
 import io
 import time
@@ -12,9 +9,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Dict, Optional
 from uuid import uuid4
-
 from fastapi import BackgroundTasks, UploadFile
-
 from app.schemas import (
     Aggregates,
     ProcessingError,
@@ -28,7 +23,6 @@ from storage.mock_s3 import MockS3Bucket, build_default_bucket
 
 
 class ProcessorService:
-    """Coordinates storage, background parsing, and result retrieval."""
 
     def __init__(
         self,
@@ -45,7 +39,6 @@ class ProcessorService:
         self._futures_lock = Lock()
 
     def enqueue_file(self, background_tasks: BackgroundTasks, file: UploadFile) -> str:
-        """Persist file data and trigger asynchronous processing."""
         file_id = str(uuid4())
         filename = Path(file.filename or "upload.csv").name
         key = f"{file_id}/{filename}"
@@ -79,14 +72,12 @@ class ProcessorService:
         return file_id
 
     def fetch_result(self, file_id: str) -> ProcessingResult:
-        """Retrieve processing output from persistent storage."""
         result = self.table.get_item(file_id)
         if result is None:
             raise KeyError(f"Processing result for file {file_id!r} not found.")
         return result
 
     def shutdown(self) -> None:
-        """Clean up executor resources during application shutdown."""
         self.executor.shutdown(wait=False, cancel_futures=True)
 
     def _clear_future(self, file_id: str) -> None:
@@ -237,4 +228,3 @@ def build_default_processor(
     aggregator = Aggregator()
     worker_count = workers or 4
     return ProcessorService(bucket=bucket, table=table, aggregator=aggregator, workers=worker_count)
-

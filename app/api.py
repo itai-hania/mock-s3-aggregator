@@ -1,9 +1,5 @@
-"""HTTP route definitions for the service."""
-
 from __future__ import annotations
-
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
-
 from app.schemas import FileUploadResponse, ProcessingResult
 from services.processor import ProcessorService, build_default_processor
 

@@ -1,18 +1,13 @@
-"""Mock DynamoDB-style datastore for processing results."""
-
 from __future__ import annotations
-
 import json
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 from typing import Dict, Optional
-
 from app.schemas import ProcessingResult
 
 
 class MockDynamoDBTable:
-    """In-memory table abstraction mirroring a subset of DynamoDB semantics."""
 
     def __init__(self, name: str, persistence_path: Optional[Path] = None) -> None:
         self.name = name
@@ -30,17 +25,11 @@ class MockDynamoDBTable:
                     self._items[file_id] = ProcessingResult.model_validate(payload)
 
     def put_item(self, item: ProcessingResult) -> None:
-        """Persist a processing result keyed by its ``file_id``.
-
-        A deep copy is stored to keep the in-memory cache isolated from
-        subsequent mutations of the provided model instance.
-        """
         with self._lock:
             self._items[item.file_id] = item.model_copy(deep=True)
             self._persist()
 
     def get_item(self, key: str) -> Optional[ProcessingResult]:
-        """Return a deep copy of the stored result for ``file_id`` ``key``."""
         with self._lock:
             item = self._items.get(key)
             if item is None:
@@ -48,7 +37,6 @@ class MockDynamoDBTable:
             return item.model_copy(deep=True)
 
     def _persist(self) -> None:
-        """Flush the current table contents to ``persistence_path`` if enabled."""
         if not self.persistence_path:
             return
         payload = {
@@ -64,4 +52,3 @@ def build_default_table(
 ) -> MockDynamoDBTable:
     persistence = Path(path) if path else None
     return MockDynamoDBTable(name=name, persistence_path=persistence)
-
