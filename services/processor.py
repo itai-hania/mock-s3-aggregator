@@ -2,6 +2,7 @@ from __future__ import annotations
 import csv
 import logging
 import time
+import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -89,6 +90,8 @@ class ProcessorService:
 
     def _process_file(self, file_id: str, key: str, uploaded_at: datetime) -> None:
         start_time = time.perf_counter()
+        logger.debug("Starting processing for file %s at key %s", file_id, key)
+
         processing_record = ProcessingResult(
             file_id=file_id,
             status=ProcessingStatus.processing,
@@ -145,27 +148,74 @@ class ProcessorService:
                         value_raw = (row.get(value_col) or "").strip()
 
                         if not sensor_raw:
-                            register_error(row_number, "missing sensor_id")
+                            reason = "missing sensor_id"
+                            logger.warning(
+                                "Skipping row %d in file %s: %s",
+                                row_number,
+                                file_id,
+                                reason,
+                            )
+                            errors.append(
+                                ProcessingError(row_number=row_number, reason=reason)
+                            )
                             continue
 
                         if not timestamp_raw:
-                            register_error(row_number, "missing timestamp")
+                            reason = "missing timestamp"
+                            logger.warning(
+                                "Skipping row %d in file %s: %s",
+                                row_number,
+                                file_id,
+                                reason,
+                            )
+                            errors.append(
+                                ProcessingError(row_number=row_number, reason=reason)
+                            )
                             continue
 
                         try:
                             timestamp = self._parse_timestamp(timestamp_raw)
                         except ValueError:
-                            register_error(row_number, "invalid timestamp")
+                            reason = "invalid timestamp"
+                            logger.warning(
+                                "Skipping row %d in file %s: %s (%s)",
+                                row_number,
+                                file_id,
+                                reason,
+                                timestamp_raw,
+                            )
+                            errors.append(
+                                ProcessingError(row_number=row_number, reason=reason)
+                            )
                             continue
 
                         if not value_raw:
-                            register_error(row_number, "missing value")
+                            reason = "missing value"
+                            logger.warning(
+                                "Skipping row %d in file %s: %s",
+                                row_number,
+                                file_id,
+                                reason,
+                            )
+                            errors.append(
+                                ProcessingError(row_number=row_number, reason=reason)
+                            )
                             continue
 
                         try:
                             value = float(value_raw)
                         except ValueError:
-                            register_error(row_number, "invalid numeric value")
+                            reason = "invalid numeric value"
+                            logger.warning(
+                                "Skipping row %d in file %s: %s (%s)",
+                                row_number,
+                                file_id,
+                                reason,
+                                value_raw,
+                            )
+                            errors.append(
+                                ProcessingError(row_number=row_number, reason=reason)
+                            )
                             continue
 
                         yield SensorReading(
@@ -190,7 +240,13 @@ class ProcessorService:
                 status = ProcessingStatus.processed
         except Exception as exc:  # pragma: no cover - defensive catch-all
             status = ProcessingStatus.failed
-            errors.append(ProcessingError(row_number=1, reason=str(exc)))
+            reason = str(exc)
+            logger.exception(
+                "Processing of file %s failed with an unexpected error: %s",
+                file_id,
+                reason,
+            )
+            errors.append(ProcessingError(row_number=1, reason=reason))
             aggregates = None
 
         processed_at = datetime.now(timezone.utc)
@@ -205,6 +261,14 @@ class ProcessorService:
             errors=errors,
         )
         self.table.put_item(final_record)
+
+        logger.info(
+            "Finished processing file %s with status %s in %d ms (errors=%d)",
+            file_id,
+            status.value,
+            processing_ms,
+            len(errors),
+        )
 
     @staticmethod
     def _parse_timestamp(value: str) -> datetime:
