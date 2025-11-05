@@ -16,13 +16,7 @@ class MockDynamoDBTable:
         self._lock = Lock()
         if persistence_path:
             persistence_path.parent.mkdir(parents=True, exist_ok=True)
-            if persistence_path.exists():
-                try:
-                    data = json.loads(persistence_path.read_text() or "{}")
-                except json.JSONDecodeError:
-                    data = {}
-                for file_id, payload in data.items():
-                    self._items[file_id] = ProcessingResult.model_validate(payload)
+            self._load_from_disk()
 
     def put_item(self, item: ProcessingResult) -> None:
         with self._lock:
@@ -36,6 +30,12 @@ class MockDynamoDBTable:
                 return None
             return item.model_copy(deep=True)
 
+    def scan(self) -> list[ProcessingResult]:
+        """Return deep copies of all stored processing results."""
+
+        with self._lock:
+            return [item.model_copy(deep=True) for item in self._items.values()]
+
     def _persist(self) -> None:
         if not self.persistence_path:
             return
@@ -43,6 +43,19 @@ class MockDynamoDBTable:
             file_id: item.model_dump(mode="json") for file_id, item in self._items.items()
         }
         self.persistence_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+
+    def _load_from_disk(self) -> None:
+        if not self.persistence_path or not self.persistence_path.exists():
+            return
+
+        try:
+            raw = self.persistence_path.read_text() or "{}"
+            data = json.loads(raw)
+        except (OSError, json.JSONDecodeError):
+            data = {}
+
+        for file_id, payload in data.items():
+            self._items[file_id] = ProcessingResult.model_validate(payload)
 
 
 @lru_cache
