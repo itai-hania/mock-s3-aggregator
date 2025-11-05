@@ -6,11 +6,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
-@dataclass(slots=True)
+@dataclass
 class SensorReading:
     """A single sensor reading parsed from the CSV."""
 
     sensor_id: str
     timestamp: datetime
     value: float
-
