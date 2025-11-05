@@ -1,8 +1,10 @@
 from __future__ import annotations
+import io
+from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, Iterator, Optional, Set, TextIO
 
 
 class MockS3Bucket:
@@ -42,6 +44,30 @@ class MockS3Bucket:
                 return data
 
         raise KeyError(f"Object with key {key!r} not found in bucket {self.name!r}.")
+
+    @contextmanager
+    def open_text_object(
+        self, key: str, encoding: str = "utf-8", newline: Optional[str] = ""
+    ) -> Iterator[TextIO]:
+        """Yield a streaming text handle for the stored object."""
+
+        if self.root_path:
+            path = self.root_path / key
+            if not path.exists():
+                raise KeyError(
+                    f"Object with key {key!r} not found in bucket {self.name!r}."
+                )
+
+            with path.open("r", encoding=encoding, newline=newline) as handle:
+                yield handle
+            return
+
+        data = self.get_object(key)
+        buffer = io.StringIO(data.decode(encoding))
+        try:
+            yield buffer
+        finally:
+            buffer.close()
 
     def list_objects(self) -> Iterable[str]:
         with self._lock:

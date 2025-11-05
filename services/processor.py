@@ -1,13 +1,12 @@
 from __future__ import annotations
 import csv
-import io
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Optional
+from typing import Dict, Iterator, Optional
 from uuid import uuid4
 from fastapi import BackgroundTasks, UploadFile
 from app.schemas import (
@@ -99,72 +98,80 @@ class ProcessorService:
         status = ProcessingStatus.processing
 
         try:
-            raw_bytes = self.bucket.get_object(key)
-            text_stream = io.StringIO(raw_bytes.decode("utf-8"))
-            reader = csv.DictReader(text_stream)
+            with self.bucket.open_text_object(key) as text_stream:
+                reader = csv.DictReader(text_stream)
 
-            if not reader.fieldnames:
-                raise ValueError("CSV file is missing a header row.")
+                if not reader.fieldnames:
+                    raise ValueError("CSV file is missing a header row.")
 
-            normalized = {name.lower().strip(): name for name in reader.fieldnames}
-            required = {"sensor_id", "timestamp", "value"}
-            missing = sorted(required - normalized.keys())
-            if missing:
-                raise ValueError(
-                    f"CSV missing required columns: {', '.join(missing)}"
-                )
-
-            sensor_col = normalized["sensor_id"]
-            timestamp_col = normalized["timestamp"]
-            value_col = normalized["value"]
-
-            readings: list[SensorReading] = []
-            for row_number, row in enumerate(reader, start=2):
-                sensor_raw = (row.get(sensor_col) or "").strip()
-                timestamp_raw = (row.get(timestamp_col) or "").strip()
-                value_raw = (row.get(value_col) or "").strip()
-
-                if not sensor_raw:
-                    errors.append(
-                        ProcessingError(row_number=row_number, reason="missing sensor_id")
+                normalized = {name.lower().strip(): name for name in reader.fieldnames}
+                required = {"sensor_id", "timestamp", "value"}
+                missing = sorted(required - normalized.keys())
+                if missing:
+                    raise ValueError(
+                        f"CSV missing required columns: {', '.join(missing)}"
                     )
-                    continue
 
-                if not timestamp_raw:
-                    errors.append(
-                        ProcessingError(row_number=row_number, reason="missing timestamp")
-                    )
-                    continue
+                sensor_col = normalized["sensor_id"]
+                timestamp_col = normalized["timestamp"]
+                value_col = normalized["value"]
 
-                try:
-                    timestamp = self._parse_timestamp(timestamp_raw)
-                except ValueError:
-                    errors.append(
-                        ProcessingError(row_number=row_number, reason="invalid timestamp")
-                    )
-                    continue
+                def iter_readings() -> Iterator[SensorReading]:
+                    for row_number, row in enumerate(reader, start=2):
+                        sensor_raw = (row.get(sensor_col) or "").strip()
+                        timestamp_raw = (row.get(timestamp_col) or "").strip()
+                        value_raw = (row.get(value_col) or "").strip()
 
-                if not value_raw:
-                    errors.append(
-                        ProcessingError(row_number=row_number, reason="missing value")
-                    )
-                    continue
+                        if not sensor_raw:
+                            errors.append(
+                                ProcessingError(
+                                    row_number=row_number, reason="missing sensor_id"
+                                )
+                            )
+                            continue
 
-                try:
-                    value = float(value_raw)
-                except ValueError:
-                    errors.append(
-                        ProcessingError(
-                            row_number=row_number, reason="invalid numeric value"
+                        if not timestamp_raw:
+                            errors.append(
+                                ProcessingError(
+                                    row_number=row_number, reason="missing timestamp"
+                                )
+                            )
+                            continue
+
+                        try:
+                            timestamp = self._parse_timestamp(timestamp_raw)
+                        except ValueError:
+                            errors.append(
+                                ProcessingError(
+                                    row_number=row_number, reason="invalid timestamp"
+                                )
+                            )
+                            continue
+
+                        if not value_raw:
+                            errors.append(
+                                ProcessingError(
+                                    row_number=row_number, reason="missing value"
+                                )
+                            )
+                            continue
+
+                        try:
+                            value = float(value_raw)
+                        except ValueError:
+                            errors.append(
+                                ProcessingError(
+                                    row_number=row_number,
+                                    reason="invalid numeric value",
+                                )
+                            )
+                            continue
+
+                        yield SensorReading(
+                            sensor_id=sensor_raw, timestamp=timestamp, value=value
                         )
-                    )
-                    continue
 
-                readings.append(
-                    SensorReading(sensor_id=sensor_raw, timestamp=timestamp, value=value)
-                )
-
-            summary = self.aggregator.aggregate(readings)
+                summary = self.aggregator.aggregate(iter_readings())
             aggregates = Aggregates(
                 row_count=summary.row_count,
                 min_value=summary.min_value,
