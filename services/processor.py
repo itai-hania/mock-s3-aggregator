@@ -1,5 +1,6 @@
 from __future__ import annotations
 import csv
+import logging
 import time
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -123,6 +124,24 @@ class ProcessorService:
                 value_col = normalized["value"]
 
                 def iter_readings() -> Iterator[SensorReading]:
+                    def register_error(row_number: int, reason: str) -> None:
+                        logger.warning(
+                            "Skipping row %d for file_id=%s (object key %s): %s",
+                            row_number,
+                            file_id,
+                            key,
+                            reason,
+                            extra={
+                                "file_id": file_id,
+                                "object_key": key,
+                                "row_number": row_number,
+                                "reason": reason,
+                            },
+                        )
+                        errors.append(
+                            ProcessingError(row_number=row_number, reason=reason)
+                        )
+
                     for row_number, row in enumerate(reader, start=2):
                         sensor_raw = (row.get(sensor_col) or "").strip()
                         timestamp_raw = (row.get(timestamp_col) or "").strip()
