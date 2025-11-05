@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Project local scratch directory
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -11,6 +14,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+tmp/
 build/
 develop-eggs/
 dist/
