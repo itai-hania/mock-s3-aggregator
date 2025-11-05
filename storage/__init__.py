@@ -1,2 +1,1 @@
 """Storage adapter package."""
-

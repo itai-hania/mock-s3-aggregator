@@ -1,2 +1,1 @@
 """Datastore adapter package."""
-
