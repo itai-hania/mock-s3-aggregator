@@ -18,6 +18,7 @@ from app.schemas import (
 from datastore.mock_dynamodb import MockDynamoDBTable, build_default_table
 from services.aggregator import Aggregator
 from models.records import SensorReading
+from settings import get_settings
 from storage.mock_s3 import MockS3Bucket, build_default_bucket
 
 
@@ -233,5 +234,6 @@ def build_default_processor(
     bucket = build_default_bucket()
     table = build_default_table()
     aggregator = Aggregator()
-    worker_count = workers or 4
+    settings = get_settings()
+    worker_count = workers if workers is not None else settings.processor_workers
     return ProcessorService(bucket=bucket, table=table, aggregator=aggregator, workers=worker_count)
