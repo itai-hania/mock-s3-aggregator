@@ -43,6 +43,9 @@ Environment variables (defaults provided in code):
 - `MOCK_DYNAMODB_PERSISTENCE_PATH=./tmp/mock_db.json`
 - `PROCESSOR_WORKER_COUNT=4`
 - `LOG_LEVEL=INFO`
+- `API_BASE_URL=http://localhost:8000` (CLI default target)
+- `CLI_POLL_INTERVAL=0.5`
+- `CLI_POLL_TIMEOUT=60`
 
 ## Running the Service
 
@@ -129,6 +132,14 @@ OpenAPI docs available at `http://localhost:8000/docs`. Redoc at `/redoc`.
 - Centralized configuration applies a contextual formatter that appends `file_id`, `object_key`, `status`, `row_count`, and other metadata when present.
 - Use `LOG_LEVEL` to control verbosity (`INFO` by default); set to `DEBUG` to surface detailed lifecycle messages.
 - Row-level validation failures emit warnings with structured context so skipped records can be traced without interrupting successful processing.
+
+## CLI
+
+- Install requirements and then invoke `python -m cli --help` for command details.
+- Upload a file: `python -m cli upload ./samples/readings.csv`
+- Upload and wait for completion: `python -m cli upload ./samples/readings.csv --wait`
+- Fetch a result later: `python -m cli result <file_id>`
+- Override the target API via `API_BASE_URL` or the `--base-url` option; tweak polling behaviour with `CLI_POLL_INTERVAL` / `CLI_POLL_TIMEOUT` or per-command flags.
 
 ## Testing
 
