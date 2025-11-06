@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Processing status – {{ result.file_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    <script type="module" src="{{ url_for('static', path='js/polling.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Mock S3 Aggregator</h1>
+      <p class="tagline">Processing details for file <code>{{ result.file_id }}</code></p>
+      <p><a href="{{ url_for('ui_index') }}">&larr; Back to all uploads</a></p>
+    </header>
+
+    <main class="layout" data-file-status data-file-id="{{ result.file_id }}" data-should-poll="{{ 'true' if should_poll else 'false' }}">
+      <section class="panel status-card">
+        <h2>Current status</h2>
+        <dl>
+          <div>
+            <dt>Status</dt>
+            <dd data-status>{{ result.status.value|capitalize }}</dd>
+          </div>
+          <div>
+            <dt>Uploaded at</dt>
+            <dd>{{ result.uploaded_at.isoformat() }}</dd>
+          </div>
+          <div>
+            <dt>Processed at</dt>
+            <dd data-processed-at>{{ result.processed_at.isoformat() if result.processed_at else '–' }}</dd>
+          </div>
+          <div>
+            <dt>Processing time</dt>
+            <dd data-processing-ms>{% if result.processing_ms %}{{ result.processing_ms }} ms{% else %}–{% endif %}</dd>
+          </div>
+        </dl>
+        {% if should_poll %}
+        <p class="note">Hang tight! This page will refresh automatically once processing finishes.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Aggregates</h2>
+        {% if result.aggregates %}
+        <dl class="grid">
+          <div>
+            <dt>Total rows</dt>
+            <dd data-row-count>{{ result.aggregates.row_count }}</dd>
+          </div>
+          <div>
+            <dt>Minimum value</dt>
+            <dd data-min-value>{% if result.aggregates.min_value is not none %}{{ '%.3f'|format(result.aggregates.min_value) }}{% else %}–{% endif %}</dd>
+          </div>
+          <div>
+            <dt>Maximum value</dt>
+            <dd data-max-value>{% if result.aggregates.max_value is not none %}{{ '%.3f'|format(result.aggregates.max_value) }}{% else %}–{% endif %}</dd>
+          </div>
+          <div>
+            <dt>Mean value</dt>
+            <dd data-mean-value>{% if result.aggregates.mean_value is not none %}{{ '%.3f'|format(result.aggregates.mean_value) }}{% else %}–{% endif %}</dd>
+          </div>
+        </dl>
+        <h3>Per-sensor counts</h3>
+        <ul class="sensor-list">
+          {% for sensor, count in result.aggregates.per_sensor_count.items() %}
+          <li><span class="sensor">{{ sensor }}</span><span class="count">{{ count }}</span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p>No aggregate data yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Errors</h2>
+        {% if result.errors %}
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Row</th>
+                <th scope="col">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for error in result.errors %}
+              <tr>
+                <td data-label="Row">{{ error.row_number }}</td>
+                <td data-label="Reason">{{ error.reason }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>No errors reported.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

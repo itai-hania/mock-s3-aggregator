@@ -55,6 +55,13 @@ uvicorn app.main:app --reload
 
 OpenAPI docs available at `http://localhost:8000/docs`. Redoc at `/redoc`.
 
+## Web UI
+
+- Navigate to `http://localhost:8000/ui` to access the server-rendered dashboard.
+- Upload CSV files via the form and review processing progress from the same page.
+- Click a file identifier to open `/ui/files/{file_id}` for detailed aggregates, error summaries, and live status polling.
+
+The UI rides on the existing API surface, making it a companion to the CLI for quick manual verification. It is intentionally lightweight—no authentication, suited for local demos and smoke testing.
 ## Optional Docker Workflow
 
 Container images are available for teams that prefer running the mock stack without a local Python toolchain. The existing

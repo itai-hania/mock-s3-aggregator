@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock S3 Aggregator – Uploads</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Mock S3 Aggregator</h1>
+      <p class="tagline">Upload CSV files and track processing progress.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Upload a CSV file</h2>
+        <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="upload-form">
+          <label for="file">Choose CSV file</label>
+          <input id="file" name="file" type="file" accept=".csv,text/csv" required />
+          <button type="submit">Upload</button>
+        </form>
+        <p class="note">Uploads are processed asynchronously. Refresh or open the detail view to monitor progress.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Recent uploads</h2>
+        {% if results %}
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">File ID</th>
+                <th scope="col">Status</th>
+                <th scope="col">Uploaded</th>
+                <th scope="col">Processed</th>
+                <th scope="col">Rows</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in results %}
+              <tr>
+                <td data-label="File ID">
+                  <a href="{{ url_for('ui_file_detail', file_id=item.file_id) }}">{{ item.file_id }}</a>
+                </td>
+                <td data-label="Status" class="status {{ item.status.value }}">{{ item.status.value|capitalize }}</td>
+                <td data-label="Uploaded">{{ item.uploaded_at.isoformat() }}</td>
+                <td data-label="Processed">{{ item.processed_at.isoformat() if item.processed_at else "–" }}</td>
+                <td data-label="Rows">
+                  {% if item.aggregates %}
+                    {{ item.aggregates.row_count }}
+                  {% else %}
+                    –
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>No files uploaded yet. Use the form above to start processing.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>
