@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    image: mock-s3-aggregator:latest
+    ports:
+      - "8000:8000"
+    environment:
+      MOCK_S3_BUCKET_NAME: "${MOCK_S3_BUCKET_NAME:-uploads}"
+      MOCK_S3_ROOT_PATH: "${MOCK_S3_ROOT_PATH:-./tmp/mock_s3}"
+      MOCK_DYNAMODB_TABLE_NAME: "${MOCK_DYNAMODB_TABLE_NAME:-processing_results}"
+      MOCK_DYNAMODB_PERSISTENCE_PATH: "${MOCK_DYNAMODB_PERSISTENCE_PATH:-./tmp/mock_db.json}"
+      PROCESSOR_WORKER_COUNT: "${PROCESSOR_WORKER_COUNT:-4}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    volumes:
+      - ./tmp:/app/tmp
+
+  cli:
+    build: .
+    image: mock-s3-aggregator:latest
+    entrypoint: ["python", "-m", "cli"]
+    working_dir: /app
+    environment:
+      API_BASE_URL: "http://api:8000"
+      MOCK_S3_BUCKET_NAME: "${MOCK_S3_BUCKET_NAME:-uploads}"
+      MOCK_S3_ROOT_PATH: "${MOCK_S3_ROOT_PATH:-./tmp/mock_s3}"
+      MOCK_DYNAMODB_TABLE_NAME: "${MOCK_DYNAMODB_TABLE_NAME:-processing_results}"
+      MOCK_DYNAMODB_PERSISTENCE_PATH: "${MOCK_DYNAMODB_PERSISTENCE_PATH:-./tmp/mock_db.json}"
+      PROCESSOR_WORKER_COUNT: "${PROCESSOR_WORKER_COUNT:-4}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    volumes:
+      - ./tmp:/app/tmp
+    depends_on:
+      - api
+    profiles:
+      - cli
