@@ -160,7 +160,7 @@ different host.
   - Real-world counterpart: Amazon S3 standard bucket.
 
 - **Mock DynamoDB**
-  - API: `put_item(table, item)`, `get_item(table, key)`, `update_item`, `scan`.
+  - API: `put_item(table, item)`, `get_item(table, key)`, `scan`.
   - Storage: in-memory dict with periodic write-through JSON file (`MOCK_DYNAMODB_PERSISTENCE_PATH`).
   - Mirrors DynamoDB partition key + item semantics.
 
@@ -200,7 +200,7 @@ Planned coverage:
 
 - Swap mocks with real AWS clients behind shared interfaces.
 - Add authentication/authorization to endpoints.
-- Implement CLI helper (upload/process/results) using Typer.
+- CLI helper (upload/process/results) implemented with Typer.
 - Optional Dockerfile + docker-compose for local orchestration.
 - Web UI to visualize uploaded files and aggregates.
 - Metrics/observability (Prometheus, structured logs, tracing).
