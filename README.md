@@ -62,6 +62,41 @@ OpenAPI docs available at `http://localhost:8000/docs`. Redoc at `/redoc`.
 - Click a file identifier to open `/ui/files/{file_id}` for detailed aggregates, error summaries, and live status polling.
 
 The UI rides on the existing API surface, making it a companion to the CLI for quick manual verification. It is intentionally lightweight—no authentication, suited for local demos and smoke testing.
+## Optional Docker Workflow
+
+Container images are available for teams that prefer running the mock stack without a local Python toolchain. The existing
+`uvicorn` instructions remain valid—Docker is entirely optional.
+
+### Build & Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+This starts the API on <http://localhost:8000> and persists mock S3/DynamoDB state under `./tmp` on the host so data
+survives container restarts. The same environment variables listed above can be overridden when invoking Compose, e.g.:
+
+```bash
+MOCK_S3_ROOT_PATH=/data/mock_s3 PROCESSOR_WORKER_COUNT=8 docker compose up --build
+```
+
+### Containerized CLI (optional)
+
+A companion `cli` service is defined for ad-hoc usage. It shares the same image and network so you can exercise the API end
+to end:
+
+```bash
+docker compose run --rm cli --help
+docker compose run --rm cli upload ./samples/readings.csv --wait
+```
+
+The CLI targets `http://api:8000` by default inside the Docker network. Override `API_BASE_URL` if you need to reach a
+different host.
+
+### Troubleshooting Containers
+
+- Reset the persisted mock data by stopping Compose and deleting the `./tmp` directory before restarting.
+- If a build fails due to stale dependencies, run `docker compose build --no-cache` to force a clean image.
 
 ## API Reference
 
