@@ -14,8 +14,6 @@ _DEFAULT_EXTRA_KEYS = (
     "status",
     "processing_ms",
     "error_count",
-    "row_count",
-    "invalid_value",
 )
 
 _configured = False

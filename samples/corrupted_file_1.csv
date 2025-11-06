@@ -1,0 +1,4 @@
+sensor-A,2025/10/01 08:12:03,23.5
+sensor-B,2025-10-01T08:12:07Z,abc
+sensor-C,BAD_TIMESTAMP,42.0
+sensor-A,2025-10-01T08:13:10Z,23.65
