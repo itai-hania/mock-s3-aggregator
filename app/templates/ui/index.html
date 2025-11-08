@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mock S3 Aggregator – Uploads</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    <script type="module" src="{{ url_for('static', path='js/upload.js') }}" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -15,12 +16,12 @@
     <main class="layout">
       <section class="panel">
         <h2>Upload a CSV file</h2>
-        <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="upload-form">
-          <label for="file">Choose CSV file</label>
-          <input id="file" name="file" type="file" accept=".csv,text/csv" required />
+        <form id="upload-form" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="upload-form">
+          <label for="file">Choose CSV file(s)</label>
+          <input id="file" name="file" type="file" accept=".csv,text/csv" multiple required />
           <button type="submit">Upload</button>
         </form>
-        <p class="note">Uploads are processed asynchronously. Refresh or open the detail view to monitor progress.</p>
+        <p id="upload-status" class="note">Uploads are processed asynchronously. Select one or more files to begin.</p>
       </section>
 
       <section class="panel">
