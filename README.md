@@ -190,11 +190,12 @@ different host.
 pytest
 ```
 
-Planned coverage:
-- Aggregation logic (edge cases, invalid rows).
-- Mock S3 and DynamoDB behaviors.
-- API integration tests with FastAPI `TestClient`.
-- Concurrency sanity (multiple uploads processed in parallel).
+Coverage highlights:
+- Aggregator edge cases (invalid rows, min/max/mean math).
+- Mock S3 and DynamoDB persistence/streaming semantics.
+- FastAPI integration (upload + polling lifecycle, error paths).
+- Processor concurrency (parallel worker test) and row-level error logging.
+- CLI flows (upload, wait, result rendering) and settings overrides.
 
 ## Design Notes & Future Enhancements
 
@@ -205,25 +206,31 @@ Planned coverage:
 - Web UI to visualize uploaded files and aggregates.
 - Metrics/observability (Prometheus, structured logs, tracing).
 
-## Project Structure (planned)
+## Project Structure
 
 ```
 app/
-  main.py              # FastAPI wiring & routes
-  api.py               # Request/response schemas
+  main.py          # FastAPI wiring & static mounts
+  api.py           # JSON API routes
+  web.py           # UI routes + Jinja templates
+  schemas.py       # Pydantic models
+cli/
+  app.py           # Typer entrypoint
+  client.py        # HTTP client
+  render.py        # Console output helpers
 services/
-  processor.py         # Background job orchestration
-  aggregator.py        # Pure aggregation logic
+  processor.py     # Upload orchestration + threading
+  aggregator.py    # Pure aggregation logic
 storage/
-  mock_s3.py           # S3-style interface
+  mock_s3.py       # S3-style object store
 datastore/
-  mock_dynamodb.py     # Dynamo-style interface
+  mock_dynamodb.py # Dynamo-style metadata store
 models/
-  records.py           # Domain models & validators
+  records.py       # SensorReading dataclass
+static/
+  css/, js/        # UI assets (polling & multi-upload helpers)
 tests/
-  test_api.py
-  test_aggregator.py
-  test_mocks.py
+  test_app.py, test_processor.py, test_cli.py, ...
 ```
 
 ## Troubleshooting
