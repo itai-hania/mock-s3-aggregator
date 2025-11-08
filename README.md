@@ -170,12 +170,6 @@ different host.
 - Thread pool chosen over async coroutines to simplify CPU-friendly CSV parsing without complex event loops.
 - Scaling strategy: increase worker count, run multiple service instances, or replace with distributed task queue (Celery/SQS) in production.
 
-## Logging
-
-- Centralized configuration applies a contextual formatter that appends `file_id`, `object_key`, `status`, `row_count`, and other metadata when present.
-- Use `LOG_LEVEL` to control verbosity (`INFO` by default); set to `DEBUG` to surface detailed lifecycle messages.
-- Row-level validation failures emit warnings with structured context so skipped records can be traced without interrupting successful processing.
-
 ## CLI
 
 - Install requirements and then invoke `python -m cli --help` for command details.
@@ -196,15 +190,6 @@ Coverage highlights:
 - FastAPI integration (upload + polling lifecycle, error paths).
 - Processor concurrency (parallel worker test) and row-level error logging.
 - CLI flows (upload, wait, result rendering) and settings overrides.
-
-## Design Notes & Future Enhancements
-
-- Swap mocks with real AWS clients behind shared interfaces.
-- Add authentication/authorization to endpoints.
-- CLI helper (upload/process/results) implemented with Typer.
-- Optional Dockerfile + docker-compose for local orchestration.
-- Web UI to visualize uploaded files and aggregates.
-- Metrics/observability (Prometheus, structured logs, tracing).
 
 ## Project Structure
 
@@ -240,5 +225,3 @@ tests/
 - **Mock storage not persisting:** Verify `MOCK_S3_ROOT` and `MOCK_DB_PATH` directories exist and are writable.
 
 ---
-
-Reach out or open an issue if anything here is unclear or you hit a setup snag. Happy hacking!
